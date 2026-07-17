@@ -79,9 +79,12 @@ docker build -f docker/Dockerfile.desktop -t ros2-zenoh-arm:jazzy-desktop docker
 
 The desktop build compiles the ROX workspace from source; expect a few minutes on a multi-core Arm server.
 
-## Credits and licence
+## Acknowledgements
 
-* Zenoh and `rmw_zenoh` — [ZettaScale](https://zenoh.io) and Open Robotics
-* ROX robot simulation — [Neobotix](https://www.neobotix-robots.com/) ([neobotix/rox](https://github.com/neobotix/rox))
-* Desktop/VNC base image — [Tiryoh/docker-ros2-desktop-vnc](https://github.com/Tiryoh/docker-ros2-desktop-vnc) (Apache-2.0)
-* Lab tooling (justfile, measurement scripts) derived from [ZettaScaleLabs/roscon2025_workshop](https://github.com/ZettaScaleLabs/roscon2025_workshop) (Apache-2.0 / EPL-2.0)
+This repository builds on the [ROSCon 2025/2026 Zenoh workshop](https://github.com/ZettaScaleLabs/roscon2025_workshop) by the Zenoh team at [ZettaScale](https://www.zettascale.tech), licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) and the [Eclipse Public License 2.0](https://www.eclipse.org/legal/epl-2.0/). The container layout, the `justfile` command shortcuts and the measurement scripts are derived from it.
+
+[Zenoh](https://zenoh.io) and [`rmw_zenoh`](https://github.com/ros2/rmw_zenoh) are developed by ZettaScale and Open Robotics. This is a community project and is not affiliated with or endorsed by either.
+
+The Dockerfile is based on [Tiryoh/docker-ros2-desktop-vnc](https://github.com/Tiryoh/docker-ros2-desktop-vnc), licensed under the [Apache License 2.0](https://github.com/Tiryoh/docker-ros2-desktop-vnc/blob/master/LICENSE).
+
+The simulation of the [ROX robot](https://www.neobotix-robots.com/products/mobile-robots/mobile-robot-rox) is courtesy of [Neobotix](https://www.neobotix-robots.com/) and comes from [neobotix/rox](https://github.com/neobotix/rox).
