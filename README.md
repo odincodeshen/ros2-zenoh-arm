@@ -49,7 +49,7 @@ docker compose up -d
 |---|---|
 | `rmw_zenoh` and all `ros-jazzy-*` packages | Installed from the official ROS apt repository at build time — release track, floats forward between builds so security fixes are picked up |
 | Neobotix ROX simulation (8 repositories) | Pinned to specific commits (`docker/golden_commits.txt`), because they determine the simulation's measurable characteristics. Present in the `desktop` image only |
-| Base image (`ros:jazzy`, `ros2-desktop-vnc`) | Pinned by digest |
+| Base images (`ros:jazzy` for base/edge, `ros2-desktop-vnc` for desktop) | Pinned by **index digest** — a platform-specific digest would break the build on other architectures. Update deliberately; check the current digest with `docker buildx imagetools inspect <image>:<tag>` |
 
 ## Layout
 

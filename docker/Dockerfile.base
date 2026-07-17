@@ -1,8 +1,14 @@
 # odinlmshen/ros2-zenoh-arm:jazzy-base
 # Clean ROS 2 Jazzy + Zenoh development base for arm64.
 # Provenance: rmw_zenoh from official ROS apt (release track).
+#
+# BASE_IMAGE is pinned by index digest (not a platform digest — a platform digest
+# would break the build on a different architecture). Update it deliberately when
+# picking up a new ros:jazzy; check the current one with:
+#   docker buildx imagetools inspect ros:jazzy
 ARG ROS_DISTRO=jazzy
-FROM ros:${ROS_DISTRO}
+ARG BASE_IMAGE=ros@sha256:31daab66eef9139933379fb67159449944f4e2dcf2e22c2d12cc715f29873e0f
+FROM ${BASE_IMAGE}
 ARG ROS_DISTRO
 ENV DEBIAN_FRONTEND=noninteractive
 COPY install-zenoh.sh /tmp/install-zenoh.sh

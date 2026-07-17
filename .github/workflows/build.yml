@@ -1,0 +1,112 @@
+name: Build and publish images
+
+# arm64-native builds and tests: the images are built and smoke-tested on the
+# same architecture they target — no QEMU emulation.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docker/**'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Push images to Docker Hub'
+        type: boolean
+        default: false
+
+env:
+  REGISTRY_IMAGE: odinlmshen/ros2-zenoh-arm
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm      # arm64 native runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set date tag
+        id: vars
+        run: echo "date=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Build base
+        run: |
+          docker build -f docker/Dockerfile.base -t "${REGISTRY_IMAGE}:jazzy-base" docker/
+
+      - name: Build edge
+        run: |
+          docker build -f docker/Dockerfile.edge \
+            --build-arg BASE_IMAGE="${REGISTRY_IMAGE}:jazzy-base" \
+            -t "${REGISTRY_IMAGE}:jazzy-edge" docker/
+
+      - name: Build desktop
+        run: |
+          docker build -f docker/Dockerfile.desktop -t "${REGISTRY_IMAGE}:jazzy-desktop" docker/
+
+      # --- Smoke tests: each image must start and do its job ---
+
+      - name: Smoke test — base
+        run: |
+          docker run --rm "${REGISTRY_IMAGE}:jazzy-base" bash -c '
+            source /opt/ros/jazzy/setup.bash
+            [ "$RMW_IMPLEMENTATION" = "rmw_zenoh_cpp" ] || { echo "RMW not set"; exit 1; }
+            ls /opt/ros/jazzy/share/rmw_zenoh_cpp/config/DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5
+            timeout 8 ros2 run rmw_zenoh_cpp rmw_zenohd 2>&1 | grep -q "Started Zenoh router"
+          '
+
+      - name: Smoke test — edge (router + talker + listener over Zenoh)
+        run: |
+          docker network create smoke
+          docker run -d --name sr --network smoke "${REGISTRY_IMAGE}:jazzy-edge" \
+            ros2 run rmw_zenoh_cpp rmw_zenohd
+          sleep 5
+          E='mode="client";connect/endpoints=["tcp/sr:7447"]'
+          docker run -d --name st --network smoke -e ZENOH_CONFIG_OVERRIDE="$E" \
+            "${REGISTRY_IMAGE}:jazzy-edge" ros2 run demo_nodes_cpp talker
+          sleep 3
+          # NOTE: redirect to a file — piping a ROS node into grep under `timeout`
+          # loses the buffered output when SIGTERM arrives, always yielding 0.
+          docker run --name sl --network smoke -e ZENOH_CONFIG_OVERRIDE="$E" \
+            "${REGISTRY_IMAGE}:jazzy-edge" \
+            bash -c 'ros2 run demo_nodes_cpp listener > /tmp/l.log 2>&1 & sleep 15; grep -c "I heard" /tmp/l.log'
+          N=$(docker logs sl 2>/dev/null | tail -1)
+          echo "listener received: $N"
+          [ "${N:-0}" -gt 0 ] || { echo "no messages relayed"; exit 1; }
+          docker rm -f sr st sl; docker network rm smoke
+
+      - name: Smoke test — desktop (ROX simulation, headless)
+        run: |
+          docker run --rm --entrypoint bash --shm-size=640m "${REGISTRY_IMAGE}:jazzy-desktop" -c '
+            source /opt/ros/jazzy/setup.bash && source /home/ubuntu/rox_ws/install/setup.bash
+            ros2 pkg prefix rox_bringup
+            cd /home/ubuntu && just --summary | tr " " "\n" | grep -q "^router$"
+            export GZ_SIM_RESOURCE_PATH=/home/ubuntu/rox_ws/src/rox:/home/ubuntu/rox_ws/src/neo_gz_worlds/models/
+            (timeout 30 ros2 run rmw_zenoh_cpp rmw_zenohd >/dev/null 2>&1 &)
+            timeout 25 ros2 launch rox_bringup bringup_sim_launch.py \
+              arm_type:=ur10 scanner_type:=psenscan imu_enable:=True d435_enable:=True \
+              headless_simulation:=True > /tmp/sim.log 2>&1
+            # xterm/teleop fails without an X display in a bare container — expected
+            if grep -iE "error|died" /tmp/sim.log | grep -viE "xterm|teleop"; then
+              echo "simulation errors found"; exit 1
+            fi
+            echo "simulation OK"
+          '
+
+      # --- Publish ---
+
+      - name: Log in to Docker Hub
+        if: github.event.inputs.publish == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push images
+        if: github.event.inputs.publish == 'true'
+        run: |
+          for tag in jazzy-base jazzy-edge jazzy-desktop; do
+            # immutable dated tag + moving tag
+            docker tag "${REGISTRY_IMAGE}:${tag}" "${REGISTRY_IMAGE}:${tag}-${{ steps.vars.outputs.date }}"
+            docker push "${REGISTRY_IMAGE}:${tag}-${{ steps.vars.outputs.date }}"
+            docker push "${REGISTRY_IMAGE}:${tag}"
+          done
