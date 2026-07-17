@@ -1,0 +1,10 @@
+# odinlmshen/ros2-zenoh-arm:jazzy-base
+# Clean ROS 2 Jazzy + Zenoh development base for arm64.
+# Provenance: rmw_zenoh from official ROS apt (release track).
+ARG ROS_DISTRO=jazzy
+FROM ros:${ROS_DISTRO}
+ARG ROS_DISTRO
+ENV DEBIAN_FRONTEND=noninteractive
+COPY install-zenoh.sh /tmp/install-zenoh.sh
+RUN ROS_DISTRO=${ROS_DISTRO} bash /tmp/install-zenoh.sh && rm /tmp/install-zenoh.sh
+ENV RMW_IMPLEMENTATION=rmw_zenoh_cpp

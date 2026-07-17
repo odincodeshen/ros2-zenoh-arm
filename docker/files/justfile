@@ -1,0 +1,83 @@
+###
+### ROS launch/run commands
+###
+
+# Run a Zenoh router
+router:
+   ros2 run rmw_zenoh_cpp rmw_zenohd
+
+# Launch Neobotix ROX simulation
+# Optional flags: no_camera (disables D435 depth camera), no_gui (headless mode)
+rox_simu *ARGS:
+    #!/usr/bin/env bash
+    camera_arg="d435_enable:=True"
+    headless_arg=""
+    passthrough=()
+    for arg in {{ARGS}}; do
+        case "$arg" in
+            no_camera) camera_arg="d435_enable:=False" ;;
+            no_gui)    headless_arg="headless_simulation:=True" ;;
+            *)         passthrough+=("$arg") ;;
+        esac
+    done
+    ros2 launch rox_bringup bringup_sim_launch.py arm_type:=ur10 scanner_type:=psenscan imu_enable:=True "$camera_arg" $headless_arg "${passthrough[@]}"
+
+# Launch Gazebo GUI client (to be used alongside: just rox_simu no_gui)
+gz_gui *ARGS:
+   gz sim -g {{ARGS}}
+
+# Launch Neobotix ROX navigation stack (in simulation)
+rox_nav2 *ARGS:
+   ros2 launch rox_navigation navigation.launch.py rox_type:=argo use_sim_time:=True use_rviz:=False {{ARGS}}
+
+# Launch RViz with Nav2 configuration for Neobotix ROX
+rviz_nav2 *ARGS:
+   ros2 launch nav2_bringup rviz_launch.py rviz_config:=/home/ubuntu/rox_nav2.rviz {{ARGS}}
+
+# Run teleop_twist_keyboard
+teleop:
+   ros2 run teleop_twist_keyboard teleop_twist_keyboard
+
+###
+### Network monitoring commands
+###
+
+# Subscribe to Realsense camera topics ("points" or "image") and print latency statistics
+# WARNING: the ROX simulation must be running with use_wall_time:=True (e.g. `just rox_simu use_wall_time:=True`)
+cam_latency TOPIC='points':
+   python3 /home/ubuntu/camera_latency.py {{TOPIC}}
+
+# Average Gazebo real time factor
+rt_factor:
+   python3 /home/ubuntu/rt_factor_avg.py
+
+# top (show commands, user only)
+top:
+   top -c -u ubuntu
+
+# iftop on localhost only (to filter-out gazebo) and without VNC
+iftop_lo:
+   sudo iftop -B -P -i lo -f "not port 5901 and (host 127.0.0.1 or host ::1)"
+
+# iftop for traffic to a remote Zenoh router only (eth0 + port 7447)
+iftop_router:
+   sudo iftop -P -i eth0 -f "port 7447"
+
+# Find which PID/command is using a port number
+find_port PORT:
+   netstat -tulnp 2>/dev/null | grep ':{{PORT}}' | sed 's/.*LISTEN *//'
+
+
+
+
+###
+### Network quality commands
+###
+
+# Restrain the network quality
+network_limit:
+   /home/ubuntu/network_limit.sh
+
+# Restore the network quality
+network_normal:
+   /home/ubuntu/network_limit.sh cancel

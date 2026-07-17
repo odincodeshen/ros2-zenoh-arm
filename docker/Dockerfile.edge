@@ -1,0 +1,11 @@
+# odinlmshen/ros2-zenoh-arm:jazzy-edge
+# Lightweight edge runtime: base + demo nodes + standard interfaces.
+# BASE_IMAGE is overridden by CI to build against the freshly-built base layer.
+ARG BASE_IMAGE=odinlmshen/ros2-zenoh-arm:jazzy-base
+FROM ${BASE_IMAGE}
+ARG ROS_DISTRO=jazzy
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ros-${ROS_DISTRO}-demo-nodes-cpp \
+        ros-${ROS_DISTRO}-common-interfaces \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*

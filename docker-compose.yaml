@@ -1,0 +1,76 @@
+# Robotics Networking on Arm — lab environment
+# Two containers built from the same image:
+#   robot   — simulates the robot (Gazebo + Nav2 + Zenoh router)
+#   control — remote operator station (RViz, measurement tools)
+#
+# Images are published for arm64. Build recipes: docker/ in this repository.
+
+services:
+  robot:
+    image: ${IMAGE_NAME:-odinlmshen/ros2-zenoh-arm:jazzy-desktop}
+    hostname: robot
+    stdin_open: true
+    tty: true
+    ports:
+      - "6080:80"          # VNC desktop in the browser
+      - "7447:7447/tcp"    # Zenoh router — the only inbound port of the system
+      - "7447:7447/udp"
+    volumes:
+      - ./container_volumes/robot_container:/home/ubuntu/container_data
+    working_dir: /home/ubuntu
+    cap_add:
+      - NET_ADMIN          # required by network_limit.sh (tc/iptables), used in LP3
+    shm_size: '640m'       # Zenoh shared memory transport, used in LP1
+    security_opt:
+      - seccomp:unconfined
+    networks:
+      sim_network:
+        ipv4_address: 172.1.0.2
+    ulimits:
+      # Default 8192 KiB is not enough for Zenoh shared memory
+      memlock:
+        soft: -1
+        hard: -1
+      # Lets Zenoh set thread priority for its SHM watchdog (avoids warnings)
+      rtprio:
+        soft: 99
+        hard: 99
+      nice:
+        soft: -20
+        hard: -20
+
+  control:
+    image: ${IMAGE_NAME:-odinlmshen/ros2-zenoh-arm:jazzy-desktop}
+    hostname: control
+    stdin_open: true
+    tty: true
+    ports:
+      - "6081:80"          # VNC desktop in the browser
+    volumes:
+      - ./container_volumes/control_container:/home/ubuntu/container_data
+    working_dir: /home/ubuntu
+    cap_add:
+      - NET_ADMIN
+    shm_size: '640m'
+    security_opt:
+      - seccomp:unconfined
+    networks:
+      sim_network:
+        ipv4_address: 172.1.0.3
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      rtprio:
+        soft: 99
+        hard: 99
+      nice:
+        soft: -20
+        hard: -20
+
+networks:
+  sim_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.1.0.0/16

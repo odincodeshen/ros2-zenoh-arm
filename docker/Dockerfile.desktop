@@ -1,0 +1,57 @@
+# robotics-networking-arm : jazzy-desktop
+# Decoupled, fully-pinned lab image for the "Robotics Networking on Arm" LP series.
+# Provenance: pinned commits match the environment that produced the LP measurement data
+# (see validation/golden_commits.txt). Dockerfile derived from ZettaScale roscon2025_workshop
+# (Apache-2.0) and Tiryoh/docker-ros2-desktop-vnc (Apache-2.0).
+
+ARG ROS_DISTRO=jazzy
+ARG BASE_IMAGE=ghcr.io/tiryoh/ros2-desktop-vnc@sha256:e288dcc378b97e9623515f144c065f25c06596e25cf3dbc665cfb94e770e41fa
+FROM ${BASE_IMAGE}
+ARG ROS_DISTRO
+
+# Golden commits (extracted from the validated workshop image, 2026-07-15)
+ARG ROX_COMMIT=be26546c421a6c16ca4f39e7b93cda4ad2426e1b
+ARG NEO_LOCAL_PLANNER2_COMMIT=0ad9a086f4e6811debda1b245850aae32639e85f
+ARG NEO_LOCALIZATION2_COMMIT=6fb0bb02f097e991966b558348aad55e8b5558c7
+ARG NEO_ROX_MOVEIT2_COMMIT=a6b1188db9f6684483b49acba28993f3d35aa612
+ARG NEO_COMMON2_COMMIT=a37a679e53a91efea9395343fbd7be3ee93f0ee6
+ARG NEO_MSGS2_COMMIT=f9f9ff368c933d9cbaf125fcd2e90b6a0093bcf5
+ARG NEO_SRVS2_COMMIT=a8bd5952e69ca7e91970193177c9b2f088be20de
+ARG NEO_GZ_WORLDS_COMMIT=acfcd704938a0d2e67de9e346abf10317db1bd8a
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Zenoh layer (shared with base/edge via install-zenoh.sh) + desktop-only packages
+COPY install-zenoh.sh /tmp/install-zenoh.sh
+RUN ROS_DISTRO=${ROS_DISTRO} bash /tmp/install-zenoh.sh && rm /tmp/install-zenoh.sh
+ENV RMW_IMPLEMENTATION=rmw_zenoh_cpp
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        xterm python3-colcon-common-extensions \
+        ros-${ROS_DISTRO}-nav2-bringup \
+        ros-${ROS_DISTRO}-robotiq-description \
+        ros-${ROS_DISTRO}-realsense2-description \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Neobotix ROX simulation workspace, pinned to golden commits
+RUN mkdir -p /home/ubuntu/rox_ws/src && cd /home/ubuntu/rox_ws/src \
+    && git clone https://github.com/neobotix/rox.git                && (cd rox && git checkout ${ROX_COMMIT}) \
+    && git clone https://github.com/neobotix/neo_local_planner2.git && (cd neo_local_planner2 && git checkout ${NEO_LOCAL_PLANNER2_COMMIT}) \
+    && git clone https://github.com/neobotix/neo_localization2.git  && (cd neo_localization2 && git checkout ${NEO_LOCALIZATION2_COMMIT}) \
+    && git clone https://github.com/neobotix/neo_rox_moveit2.git    && (cd neo_rox_moveit2 && git checkout ${NEO_ROX_MOVEIT2_COMMIT}) \
+    && git clone https://github.com/neobotix/neo_common2            && (cd neo_common2 && git checkout ${NEO_COMMON2_COMMIT}) \
+    && git clone https://github.com/neobotix/neo_msgs2              && (cd neo_msgs2 && git checkout ${NEO_MSGS2_COMMIT}) \
+    && git clone https://github.com/neobotix/neo_srvs2              && (cd neo_srvs2 && git checkout ${NEO_SRVS2_COMMIT}) \
+    && git clone https://github.com/neobotix/neo_gz_worlds.git      && (cd neo_gz_worlds && git checkout ${NEO_GZ_WORLDS_COMMIT}) \
+    && cd /home/ubuntu/rox_ws \
+    && apt-get update \
+    && rosdep install --from-paths ./src --ignore-src --rosdistro ${ROS_DISTRO} -r -y \
+    && . /opt/ros/${ROS_DISTRO}/setup.bash \
+    && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
+    && rm -rf build/ log/ src/*/.git \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# LP tooling (justfile, env script, measurement utilities)
+COPY files/ /home/ubuntu/
+RUN echo 'source /home/ubuntu/workshop_env.bash' >> /home/ubuntu/.bashrc \
+    && echo 'eval "$(just --completions bash)"' >> /home/ubuntu/.bashrc \
+    && chown -R ubuntu:ubuntu /home/ubuntu
