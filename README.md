@@ -81,7 +81,7 @@ The desktop build compiles the ROX workspace from source; expect a few minutes o
 
 ## Acknowledgements
 
-This repository builds on the [ROSCon 2025/2026 Zenoh workshop](https://github.com/ZettaScaleLabs/roscon2025_workshop) by the Zenoh team at [ZettaScale](https://www.zettascale.tech), licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) and the [Eclipse Public License 2.0](https://www.eclipse.org/legal/epl-2.0/). The container layout, the `justfile` command shortcuts and the measurement scripts are derived from it.
+This repository builds on the [ROSCon 2025/2026 Zenoh workshop](https://github.com/ZettaScaleLabs/roscon2025_workshop) by the Zenoh team at [ZettaScale](https://www.zettascale.tech), licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) and the [Eclipse Public License 2.0](https://www.eclipse.org/legal/epl-2.0/). The `justfile`, the measurement scripts (`camera_latency.py`, `rt_factor_avg.py`, `network_limit.sh`), the RViz configuration and the environment script are taken from it unchanged; the Compose file and the desktop Dockerfile are derived from it.
 
 [Zenoh](https://zenoh.io) and [`rmw_zenoh`](https://github.com/ros2/rmw_zenoh) are developed by ZettaScale and Open Robotics. This is a community project and is not affiliated with or endorsed by either.
 
