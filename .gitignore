@@ -1,0 +1,16 @@
+# Internal working documents — never publish.
+# The proposal/roadmap and the implementation logs live outside this
+# repository; these entries are a guard against them being copied in.
+lp_aidp.md
+doc/lp_aidp.md
+log_*.md
+doc/log_*.md
+
+# Chinese drafts. The English instruction versions (doc/lp*_inst.md) are the
+# published source of truth; the drafts are working documents kept locally.
+doc/lp1.md
+doc/lp2.md
+doc/lp3.md
+
+# Created at runtime by docker compose
+container_volumes/
